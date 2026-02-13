@@ -1,0 +1,16 @@
+# Compiled binaries
+hello_world
+*.o
+*.out
+*.exe
+
+# Debugging files
+gdb_commands.txt
+core
+core.*
+
+# Editor files
+*.swp
+*.swo
+*~
+.DS_Store
