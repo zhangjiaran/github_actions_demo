@@ -1,46 +1,83 @@
-name: deploy-toy-website
-on: [workflow_dispatch]
+# GitHub Actions Workflow: Deploy Toy Website
+#
+# 如何执行此工作流 (How to Execute This Workflow):
+# 1. 手动触发 (Manual Trigger Only):
+#    - 在 GitHub 仓库页面，点击 "Actions" 标签
+#    - 选择 "deploy-toy-website" 工作流
+#    - 点击 "Run workflow" 按钮
+#    - 选择要运行的分支，然后点击绿色的 "Run workflow" 按钮
+#
+# Manual Execution Method:
+# 1. Go to the repository page on GitHub, click the "Actions" tab
+# 2. Select the "deploy-toy-website" workflow
+# 3. Click the "Run workflow" button
+# 4. Select the branch to run on, then click the green "Run workflow" button
+#
+# 注意 (Note):
+# - 此工作流需要配置 Production 环境和华为云 OIDC 认证
+# - This workflow requires Production environment setup and Huawei Cloud OIDC authentication
 
+name: deploy-toy-website
+
+# 工作流触发条件 (Workflow Trigger Conditions)
+on: [workflow_dispatch]  # 仅支持手动触发 (Manual trigger only)
+
+# 工作流权限设置 (Workflow Permissions)
 permissions:
-  id-token: write
-  contents: read
+  id-token: write  # 允许写入 ID token，用于 OIDC 认证 (Allow writing ID token for OIDC authentication)
+  contents: read  # 只读访问仓库内容 (Read-only access to repository contents)
+# 工作流任务定义 (Workflow Jobs Definition)
 jobs:
   say-hello:
-    environment: Production
-    runs-on: ubuntu-latest
+    environment: Production  # 使用 Production 环境 (Use Production environment)
+    runs-on: ubuntu-latest  # 在 Ubuntu 最新版本的虚拟机上运行 (Run on latest Ubuntu VM)
     steps:
+      # 步骤1: 安装 OIDC 客户端核心包 (Step 1: Install OIDC Client from Core Package)
       - name: Install OIDC Client from Core Package
-        run: npm install @actions/core@1.6.0 @actions/http-client
+        run: npm install @actions/core@1.6.0 @actions/http-client  # 安装 GitHub Actions 核心包和 HTTP 客户端 (Install GitHub Actions core package and HTTP client)
+      # 步骤2: 获取 ID Token (Step 2: Get ID Token)
       - name: Get Id Token
-        uses: actions/github-script@v6
+        uses: actions/github-script@v6  # 使用 GitHub Script action 执行 JavaScript 代码 (Use GitHub Script action to execute JavaScript code)
         id: idtoken
         with:
           script: |
             const coredemo = require('@actions/core')
-            let id_token = await coredemo.getIDToken("set_by_owner")
-            coredemo.setOutput('id_token', id_token)
+            let id_token = await coredemo.getIDToken("set_by_owner")  # 获取 OIDC ID token (Get OIDC ID token)
+            coredemo.setOutput('id_token', id_token)  # 设置输出变量 (Set output variable)
+      # 步骤3: 登录华为云 (Step 3: Login to Huawei Cloud)
       - name: Login huaweicloud
         id: login
         run: |
+          # 测试连接到华为云 IAM 服务 (Test connection to Huawei Cloud IAM service)
           curl -ki -L -X POST -H "Authorization: Bearer ${{steps.idtoken.outputs.id_token}}" https://iam.myhuaweicloud.com/v3/OS-FEDERATION/identity_providers/oidc_test_yangbaojun/protocols/oidc/auth -H "Accept: application/json;" -H "Content-Type: application/json" -d "{}"
+          # 获取未限定范围的 token (Get unscoped token)
           unscoped_token=$(curl -ki -s -X POST -H "Authorization: Bearer ${{steps.idtoken.outputs.id_token}}" https://iam.myhuaweicloud.com/v3/OS-FEDERATION/identity_providers/oidc_test_yangbaojun/protocols/oidc/auth -H "Accept: application/json;" -H "Content-Type: application/json" -d "{}" | grep 'X-Subject-Token:' | awk '{print $2}')
           echo $unscoped_token
+          # 获取临时安全凭证 (Get temporary security credentials)
           response=$(curl -L -X POST 'https://iam.cn-north-4.myhuaweicloud.com/v3.0/OS-CREDENTIAL/securitytokens' -H "x-auth-token: $unscoped_token" -H 'Content-Type: application/json' -d '{"auth":{"identity":{"methods":["token"]}}}')
+          # 解析并保存 AK/SK 和安全令牌 (Parse and save AK/SK and security token)
           access=$(python -c "import json; print(json.loads('$response')['credential']['access'])")
           secret=$(python -c "import json; print(json.loads('$response')['credential']['secret'])")
           securitytoken=$(python -c "import json; print(json.loads('$response')['credential']['securitytoken'])")
+          # 设置输出变量供后续步骤使用 (Set output variables for subsequent steps)
           echo "access=${access}" >> $GITHUB_OUTPUT
           echo "secret=${secret}" >> $GITHUB_OUTPUT
           echo "securitytoken=${securitytoken}" >> $GITHUB_OUTPUT
+      # 步骤4: 设置 KooCLI (Step 4: Set up KooCLI - Huawei Cloud CLI)
       - name: Set up KooCLI
         run: |
+          # 创建目录并下载华为云 CLI 工具 (Create directory and download Huawei Cloud CLI tool)
           sudo mkdir -p /usr/local/hcloud
           curl -LO https://hwcloudcli.obs.cn-north-1.myhuaweicloud.com/cli/latest/huaweicloud-cli-linux-amd64.tar.gz
+          # 解压并设置执行权限 (Extract and set execute permissions)
           sudo tar -zxvf huaweicloud-cli-linux-amd64.tar.gz -C /usr/local/hcloud
           sudo chmod a+x /usr/local/hcloud/hcloud
         id: setup
+      # 步骤5: 使用 KooCLI 显示 ECS 版本信息 (Step 5: Show ECS Version Info using KooCLI)
       - name: Show Specific Version Info of ECS by KooCLI
         id: show
         run: |
+          # 配置华为云 CLI 认证信息 (Configure Huawei Cloud CLI authentication)
           /usr/local/hcloud/hcloud configure set --cli-profile=testAKSKST --cli-mode=AKSK --cli-region=ap-southeast-1 --cli-access-key=${{steps.login.outputs.access}} --cli-secret-key=${{steps.login.outputs.secret}} --cli-security-token=${{steps.login.outputs.securitytoken}} --cli-domain-id=0cf8083a8980f4210f31c01864aecda0 --cli-read-timeout=10 --cli-connect-timeout=5 --cli-agree-privacy-statement=true
+          # 查询华为云 ECS Nova 服务版本信息 (Query Huawei Cloud ECS Nova service version information)
           /usr/local/hcloud/hcloud ECS NovaShowVersion --cli-region="cn-north-4" --api_version="v2.1"

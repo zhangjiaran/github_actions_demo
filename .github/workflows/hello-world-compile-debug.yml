@@ -1,39 +1,68 @@
+# GitHub Actions Workflow: Compile and Debug Hello World
+# 
+# 如何执行此工作流 (How to Execute This Workflow):
+# 1. 自动触发 (Automatic Trigger):
+#    - 当代码推送到 main 或 master 分支时自动执行
+#    - 当创建针对 main 或 master 分支的 Pull Request 时自动执行
+# 2. 手动触发 (Manual Trigger):
+#    - 在 GitHub 仓库页面，点击 "Actions" 标签
+#    - 选择 "Compile and Debug Hello World" 工作流
+#    - 点击 "Run workflow" 按钮
+#    - 选择要运行的分支，然后点击绿色的 "Run workflow" 按钮
+#
+# Workflow Execution Methods:
+# 1. Automatic:
+#    - Automatically runs when code is pushed to main or master branch
+#    - Automatically runs when a Pull Request is created targeting main or master branch
+# 2. Manual:
+#    - Go to the repository page on GitHub, click the "Actions" tab
+#    - Select the "Compile and Debug Hello World" workflow
+#    - Click the "Run workflow" button
+#    - Select the branch to run on, then click the green "Run workflow" button
+
 name: Compile and Debug Hello World
 
+# 工作流触发条件 (Workflow Trigger Conditions)
 on:
   push:
-    branches: [ main, master ]
+    branches: [ main, master ]  # 推送到这些分支时触发 (Trigger on push to these branches)
   pull_request:
-    branches: [ main, master ]
-  workflow_dispatch:
+    branches: [ main, master ]  # PR 针对这些分支时触发 (Trigger on PR to these branches)
+  workflow_dispatch:  # 允许手动触发 (Allow manual trigger)
 
+# 工作流任务定义 (Workflow Jobs Definition)
 jobs:
   compile-and-debug:
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-latest  # 在 Ubuntu 最新版本的虚拟机上运行 (Run on latest Ubuntu VM)
     permissions:
-      contents: read
+      contents: read  # 只读权限访问仓库内容 (Read-only access to repository contents)
     
     steps:
+      # 步骤1: 检出代码 (Step 1: Checkout code)
       - name: Checkout code
-        uses: actions/checkout@v3
+        uses: actions/checkout@v3  # 使用官方 checkout action 拉取代码 (Use official checkout action to pull code)
       
+      # 步骤2: 安装构建工具 (Step 2: Install build tools)
       - name: Install build tools
         run: |
           sudo apt-get update
-          sudo apt-get install -y gcc gdb
+          sudo apt-get install -y gcc gdb  # 安装 GCC 编译器和 GDB 调试器 (Install GCC compiler and GDB debugger)
       
+      # 步骤3: 编译 Hello World 程序 (Step 3: Compile Hello World program)
       - name: Compile Hello World program
         run: |
-          gcc -g -o hello_world hello_world.c
+          gcc -g -o hello_world hello_world.c  # 使用 -g 参数生成调试信息 (Use -g flag to generate debug info)
           echo "Compilation successful!"
       
+      # 步骤4: 运行 Hello World 程序 (Step 4: Run Hello World program)
       - name: Run Hello World program
         run: |
-          ./hello_world
+          ./hello_world  # 执行编译后的程序 (Execute the compiled program)
       
+      # 步骤5: 调试 Hello World 程序 (Step 5: Debug Hello World program)
       - name: Debug Hello World program
         run: |
-          # Create a GDB command file
+          # 创建 GDB 命令文件 (Create a GDB command file)
           cat > gdb_commands.txt << 'EOF'
           # Set a breakpoint at main
           break main
@@ -47,17 +76,18 @@ jobs:
           quit
           EOF
           
-          # Run GDB with the command file
+          # 使用命令文件运行 GDB (Run GDB with the command file)
           echo "Running GDB debugger..."
           gdb -batch -x gdb_commands.txt ./hello_world
       
+      # 步骤6: 显示二进制文件信息 (Step 6: Show binary file information)
       - name: Show binary information
         run: |
           echo "Binary file information:"
-          file hello_world
+          file hello_world  # 显示文件类型信息 (Show file type information)
           echo ""
           echo "Binary size:"
-          ls -lh hello_world
+          ls -lh hello_world  # 显示文件大小 (Show file size)
           echo ""
           echo "Symbols in binary:"
-          nm hello_world | head -20
+          nm hello_world | head -20  # 显示二进制文件中的符号 (Show symbols in the binary)
