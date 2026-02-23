@@ -1,5 +1,8 @@
 # github_actions_demo
 
+[![Compile and Debug Hello World](https://github.com/zhangjiaran/github_actions_demo/actions/workflows/hello-world-compile-debug.yml/badge.svg)](https://github.com/zhangjiaran/github_actions_demo/actions/workflows/hello-world-compile-debug.yml)
+[![Snake Game CI/CD](https://github.com/zhangjiaran/github_actions_demo/actions/workflows/snake_game.yml/badge.svg)](https://github.com/zhangjiaran/github_actions_demo/actions/workflows/snake_game.yml)
+
 This repository contains GitHub Actions workflow examples.
 
 ## Hello World Compile and Debug Action
